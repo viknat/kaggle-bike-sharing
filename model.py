@@ -46,6 +46,9 @@ def clean_data(df):
 
 	df = df.drop(['holiday', 'temp', 'hour'], axis=1)
 	df = df.drop('datetime', axis=1)
+	if 'count' in df.columns.values:
+		df['count'] = df['count'].apply(lambda c: np.log(c+1))
+		#print (df.columns)
 
 	return df
 
@@ -56,7 +59,6 @@ def clean_data(df):
 df = read_data()
 df = clean_data(df)
 
-print (df.columns.values)
 y = df.pop('count').values
 X = df.values
 
@@ -72,6 +74,8 @@ def rmsle(y_pred, y_test):
 
 def score_rmsle(model):
 	y_pred = model.predict(X_test)
+	print (type(y_pred))
+	y_pred = np.exp((y_pred.astype(float))) - 1
 	y_pred = np.array([int(np.around(y)) for y in y_pred])
 	y_pred[y_pred < 0] = 0
 
@@ -82,8 +86,9 @@ def score_rmsle(model):
 linear_model = fit_model(X_train,y_train, LinearRegression)
 forest = fit_model(X_train, y_train, RandomForestClassifier)
 
-score_rmsle(linear_model)
-score_rmsle(forest)
+print (score_rmsle(linear_model))
+print (score_rmsle(forest))
+#print (list(zip(df.columns, forest.feature_importances_)))
 
 X_results = pd.read_csv('test.csv')
 dates = X_results['datetime'].values
@@ -94,7 +99,8 @@ print (X_results.columns.values)
 X_np = X_results.values
 with open('results.csv', 'w', newline='') as output:
 	a = csv.writer(output, delimiter=',')
-	y_results = forest.predict(X_np)
+	y_results = linear_model.predict(X_np)
+	y_results = np.exp((y_results.astype(float))) - 1
 	a.writerows([['datetime', 'count']])
 	for date, c in zip(dates, y_results):
 		a.writerows([[date, c]])
