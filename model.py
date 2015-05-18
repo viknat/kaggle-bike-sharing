@@ -26,13 +26,17 @@ def clean_data(df):
 
 	daylight_condition = lambda hour: hour > 6 and hour < 21
 
-	df['daylight'] = df['hour'].apply(lambda hour: daylight_condition(hour))
+	#df['daylight'] = df['hour'].apply(lambda hour: daylight_condition(hour))
+	df['time_of_day'] = pd.cut(df['hour'], bins=[0, 6, 10, 15, 20])
+	tmp = pd.get_dummies(df['time_of_day'])
+	df = df.merge(tmp, left_index=True, right_index=True, copy=False)
+	df = df.drop('time_of_day', axis=1)
 
 	season_dummies = pd.get_dummies(df['season'])
 	season_dummies.columns = ['spring','summer','autumn','winter']
 	season_dummies.drop('winter', axis=1, inplace=True)
 	df = df.merge(season_dummies, left_index=True, right_index=True, copy=False)
-	df = df.drop('season', axis=1)
+	df = df.drop(['season','hour'], axis=1)
 	try:
 		df = df.drop(['casual', 'registered'], axis=1)
 	except ValueError:
@@ -44,11 +48,12 @@ def clean_data(df):
 	df = df.merge(weather_dummies, left_index=True, right_index=True, copy=False)
 	df = df.drop(['weather'], axis=1)
 
-	df = df.drop(['holiday', 'temp', 'hour'], axis=1)
+	df = df.drop(['holiday', 'temp'], axis=1)
 	df = df.drop('datetime', axis=1)
 	if 'count' in df.columns.values:
 		df['count'] = df['count'].apply(lambda c: np.log(c+1))
 		#print (df.columns)
+	print (df.head())
 
 	return df
 
@@ -101,6 +106,7 @@ with open('results.csv', 'w', newline='') as output:
 	a = csv.writer(output, delimiter=',')
 	y_results = linear_model.predict(X_np)
 	y_results = np.exp((y_results.astype(float))) - 1
+	y_results = np.array([int(np.around(y)) for y in y_results])
 	a.writerows([['datetime', 'count']])
 	for date, c in zip(dates, y_results):
 		a.writerows([[date, c]])
