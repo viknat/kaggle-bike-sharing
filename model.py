@@ -82,8 +82,8 @@ print (df.columns)
 y = df.pop('count').values
 X = df.values
 
-X_train, X_test, y_train, y_test = train_test_split \
-(X, y, test_size = 0.3)
+# X_train, X_test, y_train, y_test = train_test_split \
+# (X, y, test_size = 0.3)
 
 
 def rmsle(y_pred, y_test):
@@ -119,16 +119,16 @@ def print_feature_importances(forest, columns):
 	for col, feat in zip(columns, forest.feature_importances_):
 		print (col, feat)
 
-linear_model = fit_model(X_train,y_train, LinearRegression())
-forest = fit_model(X_train, y_train, RandomForestClassifier())
+# linear_model = fit_model(X_train,y_train, LinearRegression())
+# forest = fit_model(X_train, y_train, RandomForestClassifier())
 
 #print (linear_model.score(X_train, y_train))
 #print (forest.score(X_train, y_train))
 
-#forest = fit_model(X, y, RandomForestClassifier)
+linear_model = fit_model(X, y, LinearRegression())
 
-print (score_rmsle(linear_model))
-print (score_rmsle(forest))
+# print (score_rmsle(linear_model))
+# print (score_rmsle(forest))
 
 X_results = pd.read_csv('test.csv')
 dates = X_results['datetime'].values
