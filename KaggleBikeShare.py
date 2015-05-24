@@ -45,18 +45,27 @@ class KaggleBikeShare():
 		df['datetime'] = df['datetime'].apply(lambda date: datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
 		df['day_of_week'] = df['datetime'].apply(lambda date: date.dayofweek)
 		df['year'] = df['datetime'].apply(lambda date: date.year)
+		df['hour'] = df['datetime'].apply(lambda date: date.hour)
 		df['year'] = df['year'] == 2012
 		
-		df = self.get_and_merge_dummies(df, 'season', ['spring', 'summer', 'fall', 'winter'])
-		df = self.get_and_merge_dummies(df, 'weather')
+		#df = self.get_and_merge_dummies(df, 'season', ['spring', 'summer', 'fall', 'winter'])
+		df['season'] = df['season'].map({2:1, 3:2, 4:3, 1:4})
+		df['conditions'] = df['season'] + df['weather']
+		df['conditions'] = df['conditions'] > 4
+		print (df.head())
+		df.drop(['season', 'weather'], axis=1, inplace=True)
+		#df = self.get_and_merge_dummies(df, 'weather', ['good', 'fair', 'bad', 'harsh'])
 		df = self.get_and_merge_dummies(df, 'day_of_week', ['Sunday', 'Monday', 'Tuesday', \
 										'Wednesday', 'Thursday', 'Friday', 'Saturday'])
-		df = self.get_and_merge_dummies(df, 'year', [2011, 2012])
+		df = self.get_and_merge_dummies(df, 'hour')
 
-		df.drop(['temp', 'holiday'], axis=1, inplace=True)
+
+		df.drop(['atemp', 'holiday'], axis=1, inplace=True)
 		if 'count' in df.columns: # If this is the training set
-			df.drop(['casual', 'registered', 'datetime'], axis=1, inplace=True)
+			df.drop(['casual', 'registered'], axis=1, inplace=True)
 			df['count'] = df['count'].apply(lambda c: np.log(c+1))
+		df.drop('datetime', axis=1, inplace=True)
+		print (df.columns)
 		return df
 
 	def split_data_train_test(self, test_size=0.3):
@@ -64,7 +73,7 @@ class KaggleBikeShare():
 		X = self.training_set.values
 
 		self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
-			X,y,test_size=test_size)
+				X,y,test_size=test_size)
 
 	def rmsle(self, y_pred, y_test):
 		'''
@@ -77,32 +86,37 @@ class KaggleBikeShare():
 	def fit_and_score_model(self, model):
 		model.fit(self.X_train, self.y_train)
 		y_pred = model.predict(self.X_test)
-		y_actual = np.log(self.y_test + 1)
-		print (self.y_test)
-
-		score = self.rmsle(y_pred, y_actual)
+		score = self.rmsle(y_pred, self.y_test)
 
 		return (model.__class__.__name__, score)
 
-	def run_models(self):
+	def run_models(self, cross_val=True, model=LinearRegression()):
 		self.training_set = self.engineer_features(self.training_set)
-		self.split_data_train_test()
 
-		for model in self.models:
-			print (self.fit_and_score_model(model))
-		self.create_submission(model[0])
+		if cross_val:
+			self.split_data_train_test(test_size=0.3)
+			for model in self.models:
+				print (self.fit_and_score_model(model))
+
+		else:
+			self.split_data_train_test(test_size=0.1)
+			model.fit(self.X_train, self.y_train)
+			print (self.X_train)
+			print (self.X_train.shape)
+			self.create_submission(model)
 
 	def create_submission(self, fitted_model):
+		dates = self.test_set['datetime'].values
 		df = self.engineer_features(self.test_set) # Test set must match training
-		dates = df.pop('datetime').values
+		#print (df.head())		
+		print (dates)
 		X_submit = df.values
 		with open('results.csv', 'w', newline='') as output:
 			a = csv.writer(output, delimiter=',')
 			y_submit = fitted_model.predict(X_submit)
-			print (y_submit)
 			y_submit = np.exp((y_submit.astype(float))) - 1
 
-			#y_submit = np.array([int(np.around(y)) for y in y_submit])
+			y_submit = np.array([int(np.around(y)) for y in y_submit])
 			a.writerows([['datetime', 'count']])
 			for date, c in zip(dates, y_submit):
 				a.writerows([[date, c]])
@@ -111,7 +125,7 @@ if __name__ == '__main__':
 	models = [LinearRegression(), RandomForestClassifier()]
 	bike_share_object = KaggleBikeShare(train_fname='train.csv', test_fname='test.csv', \
 		target_name='count', models=models)
-	bike_share_object.run_models()
+	bike_share_object.run_models(cross_val=True)
 
 
 
